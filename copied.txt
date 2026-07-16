@@ -1,3 +1,4 @@
+import sys
 import serial
 import time
 
@@ -30,26 +31,58 @@ def control_pump(direction, speed_percentage):
     ser.write(command.encode('utf-8'))
     print(f"Sent command to Pump: {command.strip()} ({speed_percentage}% speed)")
 
-# Example Sequence:
-if ser:
-    time.sleep(2) # Allow Arduino simulator boot time
+def main():
+    # sys.argv[0] is the script name itself, sys.argv[1:] gets all following arguments
+    args = sys.argv[1:]
     
-    # 1. Turn on Pump Clockwise at 50% Speed
-    control_pump('F', 50)
-    time.sleep(4)
-    
-    # 2. Crank it up to Max Speed (100%)
-    control_pump('F', 100)
-    time.sleep(4)
-    
-    # 3. Stop
-    control_pump('F', 0)
-    time.sleep(2)
-    
-    # 4. Reverse Pump (Counter-Clockwise) at 75% Speed
-    control_pump('R', 75)
-    time.sleep(4)
-    
-    # 5. Safety Shutdown
-    control_pump('F', 0)
-    ser.close()
+    if not args:
+        print("Error: No arguments provided.")
+        print("Usage example: python pump_control.py 50,3,c 40,2,cc")
+        return
+
+    if ser:
+        time.sleep(2) # Allow Arduino simulator boot time
+        
+        try:
+            for block in args:
+                # Split each block by the comma delimiter
+                parts = block.split(',')
+                if len(parts) != 3:
+                    print(f"Skipping invalid format: '{block}'. Must be speed,duration,rotation")
+                    continue
+                
+                # Parse values
+                speed = int(parts[0])
+                duration = float(parts[1])
+                rotation_raw = parts[2].lower()
+                
+                # Map 'c' to 'F' and 'cc' to 'R'
+                if rotation_raw == 'c':
+                    direction = 'F'
+                    rot_name = "Clockwise"
+                elif rotation_raw == 'cc':
+                    direction = 'R'
+                    rot_name = "Counter-Clockwise"
+                else:
+                    print(f"Skipping invalid rotation '{rotation_raw}' in block '{block}'. Use 'c' or 'cc'.")
+                    continue
+                
+                print(f"\n--- Running: Speed={speed}%, Duration={duration}s, Direction={rot_name} ---")
+                
+                # Execute command
+                control_pump(direction, speed)
+                
+                # Hold for the specified duration
+                time.sleep(duration)
+                
+        except KeyboardInterrupt:
+            print("\nSequence interrupted by user.")
+        finally:
+            # Safety Shutdown: Always stop the pump when the sequence finishes or breaks
+            print("\nExecuting safety shutdown...")
+            control_pump('F', 0)
+            ser.close()
+            print("Serial connection closed.")
+
+if __name__ == '__main__':
+    main()
