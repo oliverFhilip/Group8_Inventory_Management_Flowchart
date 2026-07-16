@@ -1,0 +1,55 @@
+import serial
+import time
+
+# Set your VM mapped serial device
+SERIAL_PORT = '/dev/ttyS0'  
+BAUD_RATE = 9600
+
+try:
+    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    print("Connected to SimulIDE Serial System")
+except Exception as e:
+    print(f"Error: {e}")
+    ser = None
+
+def control_pump(direction, speed_percentage):
+    """
+    direction: 'F' (Forward/Clockwise) or 'R' (Reverse/CCW)
+    speed_percentage: 0 to 100
+    """
+    if not ser or not ser.is_open:
+        return
+
+    # Convert 0-100% speed to 0-255 raw PWM value
+    pwm_value = int((speed_percentage / 100.0) * 255)
+    
+    # Construct command: M,F,255\n
+    command = f"M,{direction},{pwm_value}\n"
+    
+    # Send it over serial to the Arduino
+    ser.write(command.encode('utf-8'))
+    print(f"Sent command to Pump: {command.strip()} ({speed_percentage}% speed)")
+
+# Example Sequence:
+if ser:
+    time.sleep(2) # Allow Arduino simulator boot time
+    
+    # 1. Turn on Pump Clockwise at 50% Speed
+    control_pump('F', 50)
+    time.sleep(4)
+    
+    # 2. Crank it up to Max Speed (100%)
+    control_pump('F', 100)
+    time.sleep(4)
+    
+    # 3. Stop
+    control_pump('F', 0)
+    time.sleep(2)
+    
+    # 4. Reverse Pump (Counter-Clockwise) at 75% Speed
+    control_pump('R', 75)
+    time.sleep(4)
+    
+    # 5. Safety Shutdown
+    control_pump('F', 0)
+    ser.close()
