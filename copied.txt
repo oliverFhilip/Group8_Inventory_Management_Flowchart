@@ -1,88 +1,100 @@
-import sys
 import serial
 import time
+import threading
+import sys
 
 # Set your VM mapped serial device
 SERIAL_PORT = '/dev/ttyS0'  
 BAUD_RATE = 9600
 
+running = True
+
 try:
     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-    print("Connected to SimulIDE Serial System")
+    print("Connected to Arduino Serial System")
 except Exception as e:
     print(f"Error: {e}")
-    ser = None
+    sys.exit(1)
 
-def control_pump(direction, speed_percentage):
-    """
-    direction: 'F' (Forward/Clockwise) or 'R' (Reverse/CCW)
-    speed_percentage: 0 to 100
-    """
+def control_motor_2(direction, speed_percentage):
+    """ Sends command to the second motor using the 'M2' prefix """
     if not ser or not ser.is_open:
         return
-
-    # Convert 0-100% speed to 0-255 raw PWM value
+        
     pwm_value = int((speed_percentage / 100.0) * 255)
+    command = f"M2,{direction},{pwm_value}\n"
     
-    # Construct command: M,F,255\n
-    command = f"M,{direction},{pwm_value}\n"
-    
-    # Send it over serial to the Arduino
     ser.write(command.encode('utf-8'))
-    print(f"Sent command to Pump: {command.strip()} ({speed_percentage}% speed)")
+    print(f"-> Sent to Arduino: {command.strip()}")
+
+def listen_serial():
+    """ Background thread that constantly watches for keypad data """
+    global running
+    while running:
+        if ser.in_waiting > 0:
+            try:
+                line = ser.readline().decode('utf-8').strip()
+                # Intercept only messages sent by the Arduino's keypad logic
+                if line.startswith("KEY:"):
+                    data = line.replace("KEY:", "")
+                    print(f"\n[Keypad Input Received]: {data}")
+                    process_keypad_data(data)
+            except Exception:
+                pass
+        time.sleep(0.05)
+
+def process_keypad_data(data):
+    """ Parses 100*3*0 into speed, duration, and direction """
+    parts = data.split('*')
+    if len(parts) == 3:
+        try:
+            speed = int(parts[0])
+            duration = float(parts[1])
+            direction_flag = parts[2]
+            
+            # '0' is Clockwise (Forward), anything else is Counter-Clockwise (Reverse)
+            direction = 'F' if direction_flag == '0' else 'R'
+            dir_name = "Clockwise" if direction == 'F' else "Counter-Clockwise"
+            
+            print(f"--- Executing Motor 2: Speed {speed}%, Time {duration}s, Dir {dir_name} ---")
+            
+            control_motor_2(direction, speed)
+            time.sleep(duration)
+            control_motor_2('F', 0)  # Stop after duration
+            
+            print("--- Motor 2 Sequence Complete ---\nType 'quit' to exit or enter another sequence on the keypad.")
+            
+        except ValueError:
+            print("\n[Error] Invalid data format. Expected integers. Try again.")
+    else:
+        print("\n[Error] Missing arguments. Format must be: Speed*Duration*Direction#")
 
 def main():
-    # sys.argv[0] is the script name itself, sys.argv[1:] gets all following arguments
-    args = sys.argv[1:]
+    global running
     
-    if not args:
-        print("Error: No arguments provided.")
-        print("Usage example: python pump_control.py 50,3,c 40,2,cc")
-        return
-
-    if ser:
-        time.sleep(2) # Allow Arduino simulator boot time
-        
+    # Start the serial listener in the background
+    listener_thread = threading.Thread(target=listen_serial, daemon=True)
+    listener_thread.start()
+    
+    print("\nWaiting for keypad input. (Format: Speed*Duration*Direction#)")
+    print("Type 'quit' in this terminal at any time to exit.\n")
+    
+    # Main thread blocks here waiting for 'quit'
+    while running:
         try:
-            for block in args:
-                # Split each block by the comma delimiter
-                parts = block.split(',')
-                if len(parts) != 3:
-                    print(f"Skipping invalid format: '{block}'. Must be speed,duration,rotation")
-                    continue
-                
-                # Parse values
-                speed = int(parts[0])
-                duration = float(parts[1])
-                rotation_raw = parts[2].lower()
-                
-                # Map 'c' to 'F' and 'cc' to 'R'
-                if rotation_raw == 'c':
-                    direction = 'F'
-                    rot_name = "Clockwise"
-                elif rotation_raw == 'cc':
-                    direction = 'R'
-                    rot_name = "Counter-Clockwise"
-                else:
-                    print(f"Skipping invalid rotation '{rotation_raw}' in block '{block}'. Use 'c' or 'cc'.")
-                    continue
-                
-                print(f"\n--- Running: Speed={speed}%, Duration={duration}s, Direction={rot_name} ---")
-                
-                # Execute command
-                control_pump(direction, speed)
-                
-                # Hold for the specified duration
-                time.sleep(duration)
-                
+            user_input = input()
+            if user_input.strip().lower() == 'quit':
+                print("Initiating shutdown...")
+                running = False
+                control_motor_2('F', 0) # Safety stop
+                ser.close()
+                sys.exit(0)
         except KeyboardInterrupt:
-            print("\nSequence interrupted by user.")
-        finally:
-            # Safety Shutdown: Always stop the pump when the sequence finishes or breaks
-            print("\nExecuting safety shutdown...")
-            control_pump('F', 0)
+            # Catch Ctrl+C just in case
+            running = False
+            control_motor_2('F', 0)
             ser.close()
-            print("Serial connection closed.")
+            sys.exit(0)
 
 if __name__ == '__main__':
     main()
