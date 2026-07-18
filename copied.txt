@@ -6,7 +6,7 @@ KeyError: 'markupsafe'
 
 During handling of the above exception, another exception occurred:
 
-Traceback (most recent call last):
+Traceback (most recent call last)
   File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/cli/base_command.py", line 223, in _main
     status = self.run(options, args)
   File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/cli/req_command.py", line 180, in wrapper
