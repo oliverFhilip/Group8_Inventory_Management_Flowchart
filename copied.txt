@@ -1,100 +1,72 @@
-import serial
-import time
-import threading
-import sys
+ERROR: Exception:
+Traceback (most recent call last):
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 171, in _merge_into_criterion
+    crit = self.state.criteria[name]
+KeyError: 'markupsafe'
 
-# Set your VM mapped serial device
-SERIAL_PORT = '/dev/ttyS0'  
-BAUD_RATE = 9600
+During handling of the above exception, another exception occurred:
 
-running = True
-
-try:
-    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-    print("Connected to Arduino Serial System")
-except Exception as e:
-    print(f"Error: {e}")
-    sys.exit(1)
-
-def control_motor_2(direction, speed_percentage):
-    """ Sends command to the second motor using the 'M2' prefix """
-    if not ser or not ser.is_open:
-        return
-        
-    pwm_value = int((speed_percentage / 100.0) * 255)
-    command = f"M2,{direction},{pwm_value}\n"
-    
-    ser.write(command.encode('utf-8'))
-    print(f"-> Sent to Arduino: {command.strip()}")
-
-def listen_serial():
-    """ Background thread that constantly watches for keypad data """
-    global running
-    while running:
-        if ser.in_waiting > 0:
-            try:
-                line = ser.readline().decode('utf-8').strip()
-                # Intercept only messages sent by the Arduino's keypad logic
-                if line.startswith("KEY:"):
-                    data = line.replace("KEY:", "")
-                    print(f"\n[Keypad Input Received]: {data}")
-                    process_keypad_data(data)
-            except Exception:
-                pass
-        time.sleep(0.05)
-
-def process_keypad_data(data):
-    """ Parses 100*3*0 into speed, duration, and direction """
-    parts = data.split('*')
-    if len(parts) == 3:
-        try:
-            speed = int(parts[0])
-            duration = float(parts[1])
-            direction_flag = parts[2]
-            
-            # '0' is Clockwise (Forward), anything else is Counter-Clockwise (Reverse)
-            direction = 'F' if direction_flag == '0' else 'R'
-            dir_name = "Clockwise" if direction == 'F' else "Counter-Clockwise"
-            
-            print(f"--- Executing Motor 2: Speed {speed}%, Time {duration}s, Dir {dir_name} ---")
-            
-            control_motor_2(direction, speed)
-            time.sleep(duration)
-            control_motor_2('F', 0)  # Stop after duration
-            
-            print("--- Motor 2 Sequence Complete ---\nType 'quit' to exit or enter another sequence on the keypad.")
-            
-        except ValueError:
-            print("\n[Error] Invalid data format. Expected integers. Try again.")
-    else:
-        print("\n[Error] Missing arguments. Format must be: Speed*Duration*Direction#")
-
-def main():
-    global running
-    
-    # Start the serial listener in the background
-    listener_thread = threading.Thread(target=listen_serial, daemon=True)
-    listener_thread.start()
-    
-    print("\nWaiting for keypad input. (Format: Speed*Duration*Direction#)")
-    print("Type 'quit' in this terminal at any time to exit.\n")
-    
-    # Main thread blocks here waiting for 'quit'
-    while running:
-        try:
-            user_input = input()
-            if user_input.strip().lower() == 'quit':
-                print("Initiating shutdown...")
-                running = False
-                control_motor_2('F', 0) # Safety stop
-                ser.close()
-                sys.exit(0)
-        except KeyboardInterrupt:
-            # Catch Ctrl+C just in case
-            running = False
-            control_motor_2('F', 0)
-            ser.close()
-            sys.exit(0)
-
-if __name__ == '__main__':
-    main()
+Traceback (most recent call last):
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/cli/base_command.py", line 223, in _main
+    status = self.run(options, args)
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/cli/req_command.py", line 180, in wrapper
+    return func(self, options, args)
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/commands/install.py", line 346, in run
+    requirement_set = resolver.resolve(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/resolver.py", line 122, in resolve
+    self._result = resolver.resolve(
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 453, in resolve
+    state = resolution.resolve(requirements, max_rounds=max_rounds)
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 347, in resolve
+    failure_causes = self._attempt_to_pin_criterion(name, criterion)
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 207, in _attempt_to_pin_criterion
+    criteria = self._get_criteria_to_update(candidate)
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 199, in _get_criteria_to_update
+    name, crit = self._merge_into_criterion(r, parent=candidate)
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 173, in _merge_into_criterion
+    crit = Criterion.from_requirement(self._p, requirement, parent)
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/resolvers.py", line 82, in from_requirement
+    if not cands:
+  File "/usr/share/python-wheels/resolvelib-0.5.4-py2.py3-none-any.whl/resolvelib/structs.py", line 124, in __bool__
+    return bool(self._sequence)
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 99, in __bool__
+    return any(self)
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/factory.py", line 239, in iter_index_candidates
+    candidate = self._make_candidate_from_link(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/factory.py", line 167, in _make_candidate_from_link
+    self._link_candidate_cache[link] = LinkCandidate(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 296, in __init__
+    super(LinkCandidate, self).__init__(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 144, in __init__
+    self.dist = self._prepare()
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 222, in _prepare
+    dist = self._prepare_distribution()
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 307, in _prepare_distribution
+    return self._factory.preparer.prepare_linked_requirement(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/operations/prepare.py", line 480, in prepare_linked_requirement
+    return self._prepare_linked_requirement(req, parallel_builds)
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/operations/prepare.py", line 523, in _prepare_linked_requirement
+    dist = _get_prepared_distribution(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/operations/prepare.py", line 88, in _get_prepared_distribution
+    abstract_dist.prepare_distribution_metadata(finder, build_isolation)
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/distributions/sdist.py", line 34, in prepare_distribution_metadata
+    self.req.load_pyproject_toml()
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/req/req_install.py", line 512, in load_pyproject_toml
+    pyproject_toml_data = load_pyproject_toml(
+  File "/home/pi/Desktop/python_prog/rasp_web_setup/backend/myvenv/lib/python3.9/site-packages/pip/_internal/pyproject.py", line 75, in load_pyproject_toml
+    pp_toml = toml.load(f)
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 156, in load
+    return loads(f.read(), _dict, decoder)
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 510, in loads
+    ret = decoder.load_line(line, currentlevel, multikey,
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 777, in load_line
+    value, vtype = self.load_value(pair[1], strictly_valid)
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 875, in load_value
+    return (self.load_array(v), "array")
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 1021, in load_array
+    nval, ntype = self.load_value(a[i])
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 875, in load_value
+    return (self.load_array(v), "array")
+  File "/usr/share/python-wheels/toml-0.10.1-py2.py3-none-any.whl/toml/decoder.py", line 997, in load_array
+    a[b] = a[b] + ',' + a[b + 1]
+IndexError: list index out of range
